@@ -7,6 +7,9 @@ For many organizations it's common to find publicly available files posted on th
 ## Metadata Extraction
 PowerMeta uses Exiftool by Phil Harvey to extract metadata information from files. If you would prefer to download the binary from his site directly instead of using the one in this repo it can be found here: http://www.sno.phy.queensu.ca/~phil/exiftool/. Just make sure the exiftool executable is in the same directory as PowerMeta.ps1 when it is run. By default it just extracts the 'Author' and 'Creator' fields as these commonly have usernames saved. However all metadata for files can be extracted by passing PowerMeta the -ExtractAllToCsv flag.
 
+## Requirements
+PowerShell version 3.0 or later
+
 ## Usage
 ### Basic Search
 This command will initiate Google and Bing searches for files on the 'targetdomain.com' domain ending with a file extension of pdf, docx, xlsx, doc, xls, pptx, or pptx. Once it has finished crafting this list it will prompt the user asking if they wish to download the files from the target domain. After downloading files it will prompt again for extraction of metadata from those files.
