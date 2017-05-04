@@ -11,30 +11,35 @@ PowerMeta uses Exiftool by Phil Harvey to extract metadata information from file
 PowerShell version 3.0 or later
 
 ## Usage
+### Import the Module
+```
+C:\> powershell.exe -exec bypass
+PS C:\> Import-Module PowerMeta.ps1
+```
 ### Basic Search
 This command will initiate Google and Bing searches for files on the 'targetdomain.com' domain ending with a file extension of pdf, docx, xlsx, doc, xls, pptx, or pptx. Once it has finished crafting this list it will prompt the user asking if they wish to download the files from the target domain. After downloading files it will prompt again for extraction of metadata from those files.
 ``` PowerShell
-C:\PS> Invoke-PowerMeta -TargetDomain targetdomain.com
+PS C:\> Invoke-PowerMeta -TargetDomain targetdomain.com
 ```
 ### Changing FileTypes and Automatic Download and Extract
 This command will initiate Google and Bing searches for files on the 'targetdomain.com' domain ending with a file extension of pdf, or xml. It will then automatically download them from the target domain and extract metadata.
 ``` PowerShell
-C:\PS> Invoke-PowerMeta -TargetDomain targetdomain.com -FileTypes "pdf, xml" -Download -Extract
+PS C:\> Invoke-PowerMeta -TargetDomain targetdomain.com -FileTypes "pdf, xml" -Download -Extract
 ```
 ### Downloading Files From A List
 This command will initiate Google and Bing searches for files on the 'targetdomain.com' domain ending with a file extension of pdf, docx, xlsx, doc, xls, pptx, or pptx and write the links of files found to disk in a file called "target-domain-links.txt".
 ``` PowerShell
-C:\PS> Invoke-PowerMeta -TargetDomain targetdomain.com -TargetFileList target-domain-links.txt
+PS C:\> Invoke-PowerMeta -TargetDomain targetdomain.com -TargetFileList target-domain-links.txt
 ```
 ### Extract All Metadata and Limit Page Search
 This command will initiate Google and Bing searches for files on the 'targetdomain.com' domain ending with a file extension of pdf, docx, xlsx, doc, xls, pptx, or pptx but only search the first two pages. All metadata (not just the default fields) will be saved in a CSV called all-target-metadata.csv.
 ``` PowerShell
-C:\PS> Invoke-PowerMeta -TargetDomain targetdomain.com -MaxSearchPages 2 -ExtractAllToCsv all-target-metadata.csv
+PS C:\> Invoke-PowerMeta -TargetDomain targetdomain.com -MaxSearchPages 2 -ExtractAllToCsv all-target-metadata.csv
 ```
 ### Extract Metadata From Files In A Directory
 This command will simply extract all the metadata from all the files in the folder "\2017-03-031-144953\" and save it in a CSV called all-target-metadata.csv
 ``` PowerShell
-C:\PS> ExtractMetadata -OutputDir .\2017-03-031-144953\ -ExtractAllToCsv all-target-metadata.csv
+PS C:\> ExtractMetadata -OutputDir .\2017-03-031-144953\ -ExtractAllToCsv all-target-metadata.csv
 ```
 ## PowerMeta Options
 ```
