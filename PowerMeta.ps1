@@ -25,25 +25,25 @@ Function Invoke-PowerMeta{
     License: BSD 3-Clause
     Required Dependencies: None
     Optional Dependencies: None
-    
+
     .DESCRIPTION
     This function searches for publicly available files hosted on various sites for a particular domain by using specially crafted Google, and Bing searches. It then allows for the download of those files from the target domain. After retrieving the files, the metadata associated with them can be analyzed by PowerMeta. Some interesting things commonly found in metadata are usernames, domains, software titles, and computer names.
-    
+
     .PARAMETER TargetDomain
-    The target domain to search for files. 
+    The target domain to search for files.
 
     .PARAMETER FileTypes
     A comma seperated list of file extensions to search for. By default PowerMeta searches for "pdf, docx, xlsx, doc, xls, pptx, ppt".
 
     .PARAMETER OutputList
-    A file to output the list of links discovered through web searching to. 
+    A file to output the list of links discovered through web searching to.
 
     .PARAMETER OutputDir
     A directory to store all downloaded files in.
 
     .PARAMETER TargetFileList
     List of file links to download.
-    
+
     .PARAMETER Download
     Instead of being prompted interactively pass this flag to auto-download files found.
 
@@ -60,14 +60,14 @@ Function Invoke-PowerMeta{
     The maximum number of pages to search on each search engine.
 
     .Example
-    
+
     C:\PS> Invoke-PowerMeta -TargetDomain targetdomain.com
     Description
     -----------
     This command will initiate Google and Bing searches for files on the 'targetdomain.com' domain ending with a file extension of pdf, docx, xlsx, doc, xls, pptx, or pptx. Once it has finished crafting this list it will prompt the user asking if they wish to download the files from the target domain. After downloading files it will prompt again for extraction of metadata from those files.
 
     .Example
-    
+
     C:\PS> Invoke-PowerMeta -TargetDomain targetdomain.com -FileTypes "pdf, xml" -Download -Extract
     Description
     -----------
@@ -86,7 +86,7 @@ Function Invoke-PowerMeta{
     Description
     -----------
     This command will initiate Google and Bing searches for files on the 'targetdomain.com' domain ending with a file extension of pdf, docx, xlsx, doc, xls, pptx, or pptx but only search the first to pages. All metadata (not just the default fields) will be saved in a CSV called all-target-metadata.csv.
-    
+
     .Example
 
     C:\PS> ExtractMetadata -OutputDir .\2017-03-031-144953\ -ExtractAllToCsv all-target-metadata.csv
@@ -133,7 +133,7 @@ Function Invoke-PowerMeta{
         [Parameter(Position = 8, Mandatory = $false)]
         [string]
         $UserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko",
-        
+
         [Parameter(Position = 9, Mandatory = $false)]
         [int]
         $MaxSearchPages = 5
@@ -150,7 +150,7 @@ Function Invoke-PowerMeta{
             $validlinks = @()
             foreach ($filetype in $filetypearray)
                 {
-            
+
                 #Performing a Google search first
 
                 Write-Output "[*] Searching Google for 'site:$TargetDomain filetype:$filetype'"
@@ -159,7 +159,7 @@ Function Invoke-PowerMeta{
                 $pagelinks = (Invoke-WebRequest -Uri $googlesearch -UserAgent $UserAgent -UseBasicParsing).Links
                 $hrefs = @()
                 $hrefs = $pagelinks.href
-    
+
                 #Adding each valid url from page 1 to a list of valid links
                 Write-Output "[*] Now Analyzing page 1 of Google search results (100 results per page)"
                 foreach($url in $hrefs){
@@ -176,7 +176,7 @@ Function Invoke-PowerMeta{
                             $validlinks += $strippedurl
                             }
                         }
-         
+
                     }
                 #Determining if there are more than one page
                 $otherpages = @()
@@ -189,14 +189,14 @@ Function Invoke-PowerMeta{
                         }
 
                     }
-                
+
                 $otherpages = $otherpages | sort | unique
                 $pagecount = $otherpages.count
                 if ($pagecount -gt $MaxSearchPages)
                     {
                         $totalpagelimit = $MaxSearchPages - 1
                         for($j=0; $j -lt $totalpagelimit; $j++)
-                        {                                    
+                        {
                             $otherpageslimit += $otherpages[$j]
                         }
                     }
@@ -226,7 +226,7 @@ Function Invoke-PowerMeta{
                             $validlinks += $strippedurl
                             }
                         }
-         
+
                     }
                     }
 
@@ -238,7 +238,7 @@ Function Invoke-PowerMeta{
                 $bingpagelinks = (Invoke-WebRequest -Uri $bingsearch -UserAgent $UserAgent -UseBasicParsing).Links
                 $binghrefs = @()
                 $binghrefs = $bingpagelinks.href
-            
+
                 #Adding each valid link from page 1 to an array
                 Write-Output "[*] Now Analyzing page 1 of Bing search results (30 results per page)"
                 foreach($url in $binghrefs){
@@ -257,7 +257,7 @@ Function Invoke-PowerMeta{
                         }
                     }
                 $bingotherpages = @()
-                
+
                 #Determining if there are more pages to search
                 foreach($url in $binghrefs)
                     {
@@ -294,11 +294,11 @@ Function Invoke-PowerMeta{
                             $validlinks += $strippedurl
                             }
                         }
-         
+
                     }
                     }
-           
-         
+
+
                 }
 
                 $targetlinks = @()
@@ -350,7 +350,7 @@ Function Invoke-PowerMeta{
 
             $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
 
-            $result = $host.ui.PromptForChoice($title, $message, $options, 0) 
+            $result = $host.ui.PromptForChoice($title, $message, $options, 0)
 
             switch ($result)
                 {
@@ -383,7 +383,7 @@ Function Invoke-PowerMeta{
 
             $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
 
-            $result = $host.ui.PromptForChoice($title, $message, $options, 0) 
+            $result = $host.ui.PromptForChoice($title, $message, $options, 0)
 
             switch ($result)
                 {
@@ -404,7 +404,7 @@ Function Invoke-PowerMeta{
 #Function to download files from a webserver
 Function Get-TargetFiles{
         Param(
-        
+
         [Parameter(Position = 0, Mandatory = $false)]
         [array]
         $targetlinks = "",
@@ -418,7 +418,7 @@ Function Get-TargetFiles{
         $UserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko"
 
         )
-        
+
         Write-Output ('[*] Downloading ' + $targetlinks.count + ' files now.')
 
 
@@ -433,7 +433,7 @@ Function Get-TargetFiles{
     # Getting the full path of the output dir.
     $OutputPath = Convert-Path $OutputDir
     #If the Download flag was set don't bother asking about downloading
-          ## Choose to ignore any SSL Warning issues caused by Self Signed Certificates      
+          ## Choose to ignore any SSL Warning issues caused by Self Signed Certificates
           ## Code From http://poshcode.org/624
 
           ## Create a compilation environment
@@ -448,40 +448,41 @@ Function Get-TargetFiles{
 $TASource=@'
   namespace Local.ToolkitExtensions.Net.CertificatePolicy {
     public class TrustAll : System.Net.ICertificatePolicy {
-      public TrustAll() { 
+      public TrustAll() {
       }
       public bool CheckValidationResult(System.Net.ServicePoint sp,
-        System.Security.Cryptography.X509Certificates.X509Certificate cert, 
+        System.Security.Cryptography.X509Certificates.X509Certificate cert,
         System.Net.WebRequest req, int problem) {
         return true;
       }
     }
   }
-'@ 
+'@
           $TAResults=$Provider.CompileAssemblyFromSource($Params,$TASource)
           $TAAssembly=$TAResults.CompiledAssembly
 
           ## We now create an instance of the TrustAll and attach it to the ServicePointManager
           $TrustAll=$TAAssembly.CreateInstance("Local.ToolkitExtensions.Net.CertificatePolicy.TrustAll")
           [System.Net.ServicePointManager]::CertificatePolicy=$TrustAll
-  
+
           ## end code from http://poshcode.org/624
 
-          
+
           $k = 1
           foreach ($link in $targetlinks){
-         
+
           $filename = $link -replace "^.*\/"
           $testpath = ($OutputDir + "\" + $filename)
-          if (!(Test-Path $testpath)) 
+          $outputFileName = $(Split-Path $link -Leaf) -replace '[/:?%~$&{}\\|"]', "_"
+          if (!(Test-Path $testpath))
           {
           Write-Output "Now Downloading $link"
-          Invoke-WebRequest $link -UserAgent $UserAgent -UseBasicParsing -OutFile ($OutputPath + "\" + $(Split-Path $link -Leaf))
+          Invoke-WebRequest $link -UserAgent $UserAgent -UseBasicParsing -OutFile $outputFileName
           }
           Else{
           #When downloading files if a file has the same name a number is prepended
           Write-Output "Now Downloading $link"
-          Invoke-WebRequest $link -UserAgent $UserAgent -UseBasicParsing -OutFile ($OutputPath + "\" + $k + $(Split-Path $link -Leaf))
+          Invoke-WebRequest $link -UserAgent $UserAgent -UseBasicParsing -OutFile ($OutputPath + "\" + $k + $outputFileName)
 
           }
           $k++
@@ -515,7 +516,7 @@ Function ExtractMetadata{
                 Write-Output "[*] Now extracting metadata from $OutputDir"
                 try{
                 $exiftool = Get-ChildItem "exiftool.exe" -ErrorAction Stop
-                
+
                 $exifpath = $exiftool.FullName | Out-String
                 $exifpath = $exifpath -replace "`n" -replace "`r"
                 $cmd = $exifpath + " " + $OutputPath + " -CSV > $ExtractAllToCsv"
@@ -525,7 +526,7 @@ Function ExtractMetadata{
                 {
                 Write-Output "[*] Exiftool.exe was not found in the current directory! Exiting."
                 }
-                
+
 
             }
         }
@@ -547,9 +548,9 @@ Function ExtractMetadata{
                 ForEach ($file in $filearray) {
                 $filepath = $OutputPath + "\" + $file
                 Write-Output "[*] Now extracting metadata from $filepath"
-                
 
-                $cmd = $exifpath + " " + $filepath + " -CSV -Author -Creator" 
+
+                $cmd = $exifpath + " " + $filepath + " -CSV -Author -Creator"
                 $exifout = Invoke-Expression $cmd | Out-String
                 $strippedout = $exifout -replace "SourceFile" -replace "Author" -replace "Creator" -replace "`n" -replace "`r"
                 $modpath = $OutputPath -replace "\\", "\/"
@@ -565,7 +566,7 @@ Function ExtractMetadata{
                 }
                 catch
                 {
-                Write-Output "[*] Exiftool.exe was not found in the current directory! Exiting."                
+                Write-Output "[*] Exiftool.exe was not found in the current directory! Exiting."
                 }
 
                 }
