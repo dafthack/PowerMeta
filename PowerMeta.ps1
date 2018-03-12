@@ -473,16 +473,16 @@ $TASource=@'
 
           $filename = $link -replace "^.*\/"
           $testpath = ($OutputDir + "\" + $filename)
+          $outputFileName = $(Split-Path $link -Leaf) -replace '[/:?%~$&{}\\|"]', "_"
           if (!(Test-Path $testpath))
           {
           Write-Output "Now Downloading $link"
-          $outputFileName = $(Split-Path $link -Leaf) -replace '[/:?%~$&{}\\|"]', "_"
           Invoke-WebRequest $link -UserAgent $UserAgent -UseBasicParsing -OutFile $outputFileName
           }
           Else{
           #When downloading files if a file has the same name a number is prepended
           Write-Output "Now Downloading $link"
-          Invoke-WebRequest $link -UserAgent $UserAgent -UseBasicParsing -OutFile ($OutputPath + "\" + $k + $(Split-Path $link -Leaf))
+          Invoke-WebRequest $link -UserAgent $UserAgent -UseBasicParsing -OutFile ($OutputPath + "\" + $k + $outputFileName)
 
           }
           $k++
