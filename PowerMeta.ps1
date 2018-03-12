@@ -14,7 +14,8 @@ $AllProtocols = [System.Net.SecurityProtocolType]'Ssl3,Tls,Tls11,Tls12'
 [System.Net.ServicePointManager]::SecurityProtocol = $AllProtocols
 [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
 
-Function Invoke-PowerMeta{
+function Invoke-PowerMeta
+{
 
     <#
     .SYNOPSIS
@@ -96,8 +97,8 @@ Function Invoke-PowerMeta{
 
     #>
 
-      Param
-      (
+    Param
+    (
         [Parameter(Position = 0, Mandatory = $true)]
         [string]
         $TargetDomain = "",
@@ -138,272 +139,275 @@ Function Invoke-PowerMeta{
         [int]
         $MaxSearchPages = 5
 
-        )
+    )
 
-    #If no target file list was provided we will perform searches and craft one.
-    If ($TargetFileList -eq "")
+    # If no target file list was provided we will perform searches and craft one.
+    if ($TargetFileList -eq "")
+    {
+
+        $filetypearray = @()
+        $filetypearray = $FileTypes -split ", "
+
+        $validlinks = @()
+        foreach ($filetype in $filetypearray)
         {
 
-            $filetypearray = @()
-            $filetypearray = $FileTypes -split ", "
+            # Performing a Google search first
 
-            $validlinks = @()
-            foreach ($filetype in $filetypearray)
+            Write-Output "[*] Searching Google for 'site:$TargetDomain filetype:$filetype'"
+            $googlesearch = "https://www.google.com/search?q=site:$TargetDomain+filetype:$filetype&num=100"
+            $pagelinks = @()
+            $pagelinks = (Invoke-WebRequest -Uri $googlesearch -UserAgent $UserAgent -UseBasicParsing).Links
+            $hrefs = @()
+            $hrefs = $pagelinks.href
+
+            # Adding each valid url from page 1 to a list of valid links
+            Write-Output "[*] Now Analyzing page 1 of Google search results (100 results per page)"
+            foreach($url in $hrefs)
+            {
+                if (($url -like "*$TargetDomain*") -and ($url -like "*.$filetype*"))
                 {
+                    if ($url -like "*http://*")
+                    {
+                        $strippedurl = [regex]::match($url,"http([^\)]+).$filetype").Value
+                        $validlinks += $strippedurl
+                    }
+                    elseif ($url -like "*https://*")
+                    {
+                        $strippedurl = [regex]::match($url,"https([^\)]+).$filetype").Value
+                        $validlinks += $strippedurl
+                    }
+                }
+            }
+            # Determining if there are more than one page
+            $otherpages = @()
+            $otherpageslimit = @()
+            foreach($url in $hrefs)
+            {
+                if ($url -like "*search?q*start=*")
+                {
+                    $otherpages += "https://www.google.com$url" + "&num=100"
+                }
+            }
 
-                #Performing a Google search first
+            $otherpages = $otherpages | sort | unique
+            $pagecount = $otherpages.count
+            if ($pagecount -gt $MaxSearchPages)
+            {
+                $totalpagelimit = $MaxSearchPages - 1
+                for($j=0; $j -lt $totalpagelimit; $j++)
+                {
+                    $otherpageslimit += $otherpages[$j]
+                }
+            }
 
-                Write-Output "[*] Searching Google for 'site:$TargetDomain filetype:$filetype'"
-                $googlesearch = "https://www.google.com/search?q=site:$TargetDomain+filetype:$filetype&num=100"
-                $pagelinks = @()
-                $pagelinks = (Invoke-WebRequest -Uri $googlesearch -UserAgent $UserAgent -UseBasicParsing).Links
-                $hrefs = @()
-                $hrefs = $pagelinks.href
-
-                #Adding each valid url from page 1 to a list of valid links
-                Write-Output "[*] Now Analyzing page 1 of Google search results (100 results per page)"
-                foreach($url in $hrefs){
+            $otherpageslimit = $otherpageslimit -replace "&amp;","&"
+            $morepagelinks = @()
+            $morehrefs = @()
+            $i = 2
+            # for each additional page in the Google search results find links
+            foreach($page in $otherpageslimit)
+            {
+                Write-Output "[*] Now Analyzing page $i of Google search results (100 results per page)"
+                $i++
+                $morepagelinks = (Invoke-WebRequest -Uri $page -UserAgent $UserAgent -UseBasicParsing).Links
+                $morehrefs = $morepagelinks.href
+                foreach($url in $morehrefs)
+                {
                     if (($url -like "*$TargetDomain*") -and ($url -like "*.$filetype*"))
-                        {
+                    {
                         if ($url -like "*http://*")
-                            {
+                        {
                             $strippedurl = [regex]::match($url,"http([^\)]+).$filetype").Value
                             $validlinks += $strippedurl
-                            }
+                        }
                         elseif ($url -like "*https://*")
-                            {
+                        {
                             $strippedurl = [regex]::match($url,"https([^\)]+).$filetype").Value
                             $validlinks += $strippedurl
-                            }
                         }
-
                     }
-                #Determining if there are more than one page
-                $otherpages = @()
-                $otherpageslimit = @()
-                foreach($url in $hrefs)
+                }
+            }
+
+            # Performing a Bing search second
+
+            Write-Output "[*] Searching Bing for 'site:$TargetDomain filetype:$filetype'"
+            $bingsearch = "http://www.bing.com/search?q=site:$TargetDomain%20filetype:$filetype&count=30"
+            $bingpagelinks = @()
+            $bingpagelinks = (Invoke-WebRequest -Uri $bingsearch -UserAgent $UserAgent -UseBasicParsing).Links
+            $binghrefs = @()
+            $binghrefs = $bingpagelinks.href
+
+            # Adding each valid link from page 1 to an array
+            Write-Output "[*] Now Analyzing page 1 of Bing search results (30 results per page)"
+            foreach($url in $binghrefs){
+                if (($url -like "*$TargetDomain*") -and ($url -like "*.$filetype*"))
                     {
-                    if ($url -like "*search?q*start=*")
+                    if ($url -like "*http://*")
                         {
-                        $otherpages += "https://www.google.com$url" + "&num=100"
+                        $strippedurl = [regex]::match($url,"http([^\)]+).$filetype").Value
+                        $validlinks += $strippedurl
                         }
-
-                    }
-
-                $otherpages = $otherpages | sort | unique
-                $pagecount = $otherpages.count
-                if ($pagecount -gt $MaxSearchPages)
-                    {
-                        $totalpagelimit = $MaxSearchPages - 1
-                        for($j=0; $j -lt $totalpagelimit; $j++)
+                    elseif ($url -like "*https://*")
                         {
-                            $otherpageslimit += $otherpages[$j]
+                        $strippedurl = [regex]::match($url,"https([^\)]+).$filetype").Value
+                        $validlinks += $strippedurl
                         }
                     }
+                }
+            $bingotherpages = @()
 
-                $otherpageslimit = $otherpageslimit -replace "&amp;","&"
-                $morepagelinks = @()
-                $morehrefs = @()
-                $i = 2
-                #for each additional page in the Google search results find links
-                foreach($page in $otherpageslimit)
-                    {
-                    Write-Output "[*] Now Analyzing page $i of Google search results (100 results per page)"
-                    $i++
-                    $morepagelinks = (Invoke-WebRequest -Uri $page -UserAgent $UserAgent -UseBasicParsing).Links
-                    $morehrefs = $morepagelinks.href
-                    foreach($url in $morehrefs){
+            # Determining if there are more pages to search
+            foreach($url in $binghrefs)
+            {
+                if ($url -like "*search?q*first=*")
+                {
+                    $bingotherpages += "https://www.bing.com$url" + "&count=30"
+                }
+            }
+
+            $bingotherpages = $bingotherpages | sort | unique
+            $bingotherpages = $bingotherpages -replace "&amp;","&"
+            $morepagelinks = @()
+            $morehrefs = @()
+            $i = 2
+
+            # for each additional page in the Bing search results find links
+            foreach($page in $bingotherpages)
+            {
+                Write-Output "[*] Now Analyzing page $i of Bing search results (30 results per page)"
+                $i++
+                $morepagelinks = (Invoke-WebRequest -Uri $page -UserAgent $UserAgent -UseBasicParsing).Links
+                $morehrefs = $morepagelinks.href
+                foreach($url in $morehrefs){
                     if (($url -like "*$TargetDomain*") -and ($url -like "*.$filetype*"))
-                        {
+                    {
                         if ($url -like "*http://*")
-                            {
+                        {
                             $strippedurl = [regex]::match($url,"http([^\)]+).$filetype").Value
                             $validlinks += $strippedurl
-                            }
+                        }
                         elseif ($url -like "*https://*")
-                            {
+                        {
                             $strippedurl = [regex]::match($url,"https([^\)]+).$filetype").Value
                             $validlinks += $strippedurl
-                            }
-                        }
-
-                    }
-                    }
-
-                #Performing a Bing search second
-
-                Write-Output "[*] Searching Bing for 'site:$TargetDomain filetype:$filetype'"
-                $bingsearch = "http://www.bing.com/search?q=site:$TargetDomain%20filetype:$filetype&count=30"
-                $bingpagelinks = @()
-                $bingpagelinks = (Invoke-WebRequest -Uri $bingsearch -UserAgent $UserAgent -UseBasicParsing).Links
-                $binghrefs = @()
-                $binghrefs = $bingpagelinks.href
-
-                #Adding each valid link from page 1 to an array
-                Write-Output "[*] Now Analyzing page 1 of Bing search results (30 results per page)"
-                foreach($url in $binghrefs){
-                    if (($url -like "*$TargetDomain*") -and ($url -like "*.$filetype*"))
-                        {
-                        if ($url -like "*http://*")
-                            {
-                            $strippedurl = [regex]::match($url,"http([^\)]+).$filetype").Value
-                            $validlinks += $strippedurl
-                            }
-                        elseif ($url -like "*https://*")
-                            {
-                            $strippedurl = [regex]::match($url,"https([^\)]+).$filetype").Value
-                            $validlinks += $strippedurl
-                            }
                         }
                     }
-                $bingotherpages = @()
-
-                #Determining if there are more pages to search
-                foreach($url in $binghrefs)
-                    {
-                    if ($url -like "*search?q*first=*")
-                        {
-                        $bingotherpages += "https://www.bing.com$url" + "&count=30"
-                        }
-
-                    }
-                $bingotherpages = $bingotherpages | sort | unique
-                $bingotherpages = $bingotherpages -replace "&amp;","&"
-                $morepagelinks = @()
-                $morehrefs = @()
-                $i = 2
-
-                #for each additional page in the Bing search results find links
-                foreach($page in $bingotherpages)
-                    {
-                    Write-Output "[*] Now Analyzing page $i of Bing search results (30 results per page)"
-                    $i++
-                    $morepagelinks = (Invoke-WebRequest -Uri $page -UserAgent $UserAgent -UseBasicParsing).Links
-                    $morehrefs = $morepagelinks.href
-                    foreach($url in $morehrefs){
-                    if (($url -like "*$TargetDomain*") -and ($url -like "*.$filetype*"))
-                        {
-                        if ($url -like "*http://*")
-                            {
-                            $strippedurl = [regex]::match($url,"http([^\)]+).$filetype").Value
-                            $validlinks += $strippedurl
-                            }
-                        elseif ($url -like "*https://*")
-                            {
-                            $strippedurl = [regex]::match($url,"https([^\)]+).$filetype").Value
-                            $validlinks += $strippedurl
-                            }
-                        }
-
-                    }
-                    }
-
 
                 }
+            }
 
-                $targetlinks = @()
-                #getting rid of webcache links
-                foreach ($link in $validlinks)
-                    {
-                    if ($link -notlike "*webcache.google*")
-                        {
-                        $targetlinks += $link
-                        }
-                    }
-                $targetlinks = $targetlinks | sort | unique
-
-                Write-Output ('[*] A total of ' + $targetlinks.count + ' files were discovered.')
-                Write-Output "`n"
-
-                #If an OutputList is specified write the results to disk
-                If ($OutputList -ne "")
-                    {
-                    Write-Output "[*] Writing links to a file at $OutputList"
-                    $targetlinks | Out-File -Encoding ascii $OutputList
-                    }
 
         }
-    #If a target list was specified let's use that.
-    If ($TargetFileList -ne "")
 
+        $targetlinks = @()
+        # getting rid of webcache links
+        foreach ($link in $validlinks)
         {
+            if ($link -notlike "*webcache.google*")
+            {
+                $targetlinks += $link
+            }
+        }
+        $targetlinks = $targetlinks | sort | unique
+
+        Write-Output ('[*] A total of ' + $targetlinks.count + ' files were discovered.')
+        Write-Output "`n"
+
+        # If an OutputList is specified write the results to disk
+        if ($OutputList -ne "")
+        {
+            Write-Output "[*] Writing links to a file at $OutputList"
+            $targetlinks | Out-File -Encoding ascii $OutputList
+        }
+
+    }
+    # If a target list was specified let's use that.
+    if ($TargetFileList -ne "")
+    {
         $targetlinks = Get-Content $TargetFileList
         Write-Output "[*]Using the file list at $TargetFileList"
         Write-Output ('[*] A total of ' + $targetlinks.count + ' files were found.')
-        }
+    }
     # If no output directory was named we will create one in with the current date/time.
-        If($OutputDir -eq "")
-            {
-                $OutputDir = Get-Date -format yyyy-MM-dd-HHmmss
-            }
-    If ($Download)
+    if($OutputDir -eq "")
+    {
+        $OutputDir = Get-Date -format yyyy-MM-dd-HHmmss
+    }
+    if ($Download)
     {
         Get-TargetFiles -targetlinks $targetlinks -OutputDir $OutputDir -UserAgent $UserAgent
     }
     elseif($Download -eq $false)
+    {
+        $title = "Download Files?"
+        $message = "Would you like to download all of the files discovered?"
+
+        $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Downloads all of the target files."
+        $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "The files will not be downloaded."
+
+        $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+
+        $result = $host.ui.PromptForChoice($title, $message, $options, 0)
+
+        switch ($result)
         {
-            $title = "Download Files?"
-            $message = "Would you like to download all of the files discovered?"
-
-            $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Downloads all of the target files."
-            $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "The files will not be downloaded."
-
-            $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
-
-            $result = $host.ui.PromptForChoice($title, $message, $options, 0)
-
-            switch ($result)
-                {
-                 0 {
-                    "[*] Now downloading the files."
-                    Get-TargetFiles -targetlinks $targetlinks -OutputDir $OutputDir -UserAgent $UserAgent
-                   }
-                 1 {"[*] No files will be downloaded."}
-                }
-
+            0 {
+            "[*] Now downloading the files."
+            Get-TargetFiles -targetlinks $targetlinks -OutputDir $OutputDir -UserAgent $UserAgent
+            }
+            1 {"[*] No files will be downloaded."}
         }
-    If ($Extract)
+
+    }
+    if ($Extract)
+    {
+        Write-Output "[*] Now extracting metadata from the files."
+        if ($ExtractAllToCsv -ne "")
         {
-            Write-Output "[*] Now extracting metadata from the files."
-            If ($ExtractAllToCsv -ne "")
-            {
-                ExtractMetadata -OutputDir $OutputDir -ExtractAllToCsv $ExtractAllToCsv
-            }
-            else{
-                ExtractMetadata -OutputDir $OutputDir
-            }
+            ExtractMetadata -OutputDir $OutputDir -ExtractAllToCsv $ExtractAllToCsv
         }
+        else{
+            ExtractMetadata -OutputDir $OutputDir
+        }
+    }
     elseif($Extract -eq $false)
+    {
+        $title = "Extract Metadata?"
+        $message = "Would you like to extract metadata from all of the files downloaded now?"
+
+        $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Extracts metadata from downloaded files."
+        $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "No metadata will be extracted at this time."
+
+        $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+
+        $result = $host.ui.PromptForChoice($title, $message, $options, 0)
+
+        switch ($result)
         {
-            $title = "Extract Metadata?"
-            $message = "Would you like to extract metadata from all of the files downloaded now?"
-
-            $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Extracts metadata from downloaded files."
-            $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "No metadata will be extracted at this time."
-
-            $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
-
-            $result = $host.ui.PromptForChoice($title, $message, $options, 0)
-
-            switch ($result)
+            0 {
+                Write-Output "[*] Now extracting metadata from the files."
+                if ($ExtractAllToCsv)
                 {
-                 0 {
-                    Write-Output "[*] Now extracting metadata from the files."
-                    If ($ExtractAllToCsv)
-                    {
-                        ExtractMetadata -OutputDir $OutputDir -ExtractAllToCsv
-                    }
-                    else{
-                        ExtractMetadata -OutputDir $OutputDir
-                    }
-                   }
-                 1 {"[*] No metadata will be extracted at this time. If you wish to extract metadata later you can run the ExtractMetadata function on a directory of files like so: PS C:>ExtractMetadata -OutputDir `"C:\Users\username\directory-of-files\`""}
+                    ExtractMetadata -OutputDir $OutputDir -ExtractAllToCsv
                 }
+                else
+                {
+                    ExtractMetadata -OutputDir $OutputDir
+                }
+            }
+            1 {
+                "[*] No metadata will be extracted at this time. If you wish to extract metadata later you can run the ExtractMetadata function on a directory of files like so: PS C:>ExtractMetadata -OutputDir `"C:\Users\username\directory-of-files\`""
+            }
         }
+    }
 }
-#Function to download files from a webserver
-Function Get-TargetFiles{
-        Param(
+# Function to download files from a webserver
+function Get-TargetFiles
+{
+    Param
+    (
 
         [Parameter(Position = 0, Mandatory = $false)]
         [array]
@@ -417,33 +421,34 @@ Function Get-TargetFiles{
         [string]
         $UserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko"
 
-        )
+    )
 
-        Write-Output ('[*] Downloading ' + $targetlinks.count + ' files now.')
+    Write-Output ('[*] Downloading ' + $targetlinks.count + ' files now.')
 
 
-        # Testing to see if the output directory exists. If not, we'll create it.
-        $TestOutputDir = Test-Path $OutputDir
-        If($TestOutputDir -ne $True)
-            {
-                Write-Output "[*] The output directory $OutputDir does not exist. Creating directory $OutputDir."
-                mkdir $OutputDir
-            }
+    # Testing to see if the output directory exists. If not, we'll create it.
+    $TestOutputDir = Test-Path $OutputDir
+    if($TestOutputDir -ne $True)
+    {
+        Write-Output "[*] The output directory $OutputDir does not exist. Creating directory $OutputDir."
+        mkdir $OutputDir
+    }
 
     # Getting the full path of the output dir.
     $OutputPath = Convert-Path $OutputDir
-    #If the Download flag was set don't bother asking about downloading
-          ## Choose to ignore any SSL Warning issues caused by Self Signed Certificates
-          ## Code From http://poshcode.org/624
+    # If the Download flag was set don't bother asking about downloading
 
-          ## Create a compilation environment
-          $Provider=New-Object Microsoft.CSharp.CSharpCodeProvider
-          $Compiler=$Provider.CreateCompiler()
-          $Params=New-Object System.CodeDom.Compiler.CompilerParameters
-          $Params.GenerateExecutable=$False
-          $Params.GenerateInMemory=$True
-          $Params.IncludeDebugInformation=$False
-          $Params.ReferencedAssemblies.Add("System.DLL") > $null
+    ## Choose to ignore any SSL Warning issues caused by Self Signed Certificates
+    ## Code From http://poshcode.org/624
+
+    ## Create a compilation environment
+    $Provider=New-Object Microsoft.CSharp.CSharpCodeProvider
+    $Compiler=$Provider.CreateCompiler()
+    $Params=New-Object System.CodeDom.Compiler.CompilerParameters
+    $Params.GenerateExecutable=$False
+    $Params.GenerateInMemory=$True
+    $Params.IncludeDebugInformation=$False
+    $Params.ReferencedAssemblies.Add("System.DLL") > $null
 
 $TASource=@'
   namespace Local.ToolkitExtensions.Net.CertificatePolicy {
@@ -458,42 +463,42 @@ $TASource=@'
     }
   }
 '@
-          $TAResults=$Provider.CompileAssemblyFromSource($Params,$TASource)
-          $TAAssembly=$TAResults.CompiledAssembly
+    $TAResults=$Provider.CompileAssemblyFromSource($Params,$TASource)
+    $TAAssembly=$TAResults.CompiledAssembly
 
-          ## We now create an instance of the TrustAll and attach it to the ServicePointManager
-          $TrustAll=$TAAssembly.CreateInstance("Local.ToolkitExtensions.Net.CertificatePolicy.TrustAll")
-          [System.Net.ServicePointManager]::CertificatePolicy=$TrustAll
+    ## We now create an instance of the TrustAll and attach it to the ServicePointManager
+    $TrustAll=$TAAssembly.CreateInstance("Local.ToolkitExtensions.Net.CertificatePolicy.TrustAll")
+    [System.Net.ServicePointManager]::CertificatePolicy=$TrustAll
 
-          ## end code from http://poshcode.org/624
+    ## end code from http://poshcode.org/624
 
+    $k = 1
+    foreach ($link in $targetlinks)
+    {
 
-          $k = 1
-          foreach ($link in $targetlinks){
-
-          $filename = $link -replace "^.*\/"
-          $testpath = ($OutputDir + "\" + $filename)
-          $outputFileName = $(Split-Path $link -Leaf) -replace '[/:?%~$&{}\\|"]', "_"
-          if (!(Test-Path $testpath))
-          {
-          Write-Output "Now Downloading $link"
-          Invoke-WebRequest $link -UserAgent $UserAgent -UseBasicParsing -OutFile $outputFileName
-          }
-          Else{
-          #When downloading files if a file has the same name a number is prepended
-          Write-Output "Now Downloading $link"
-          Invoke-WebRequest $link -UserAgent $UserAgent -UseBasicParsing -OutFile ($OutputPath + "\" + $k + $outputFileName)
-
-          }
-          $k++
-          }
-
+        $filename = $link -replace "^.*\/"
+        $testpath = ($OutputDir + "\" + $filename)
+        $outputFileName = $(Split-Path $link -Leaf) -replace '[/:?%~$&{}\\|"]', "_"
+        if (!(Test-Path $testpath))
+        {
+            Write-Output "Now Downloading $link"
+            Invoke-WebRequest $link -UserAgent $UserAgent -UseBasicParsing -OutFile $outputFileName
+        }
+        else
+        {
+            # When downloading files if a file has the same name a number is prepended
+            Write-Output "Now Downloading $link"
+            Invoke-WebRequest $link -UserAgent $UserAgent -UseBasicParsing -OutFile ($OutputPath + "\" + $k + $outputFileName)
+        }
+        $k++
+    }
 }
 
-#Use exiftool to extract metadata from each file
-Function ExtractMetadata{
-        Param(
-
+# Use exiftool to extract metadata from each file
+function ExtractMetadata
+{
+    Param
+    (
         [Parameter(Position = 0, Mandatory = $false)]
         [string]
         $OutputDir = "",
@@ -501,60 +506,65 @@ Function ExtractMetadata{
         [Parameter(Position = 1, Mandatory = $false)]
         [string]
         $ExtractAllToCsv = ""
-        )
-        #If "ExtractAllToCsv flag is set extract all metadata from files
-        if ($ExtractAllToCsv -ne "")
+    )
+
+    # If "ExtractAllToCsv flag is set extract all metadata from files
+    if ($ExtractAllToCsv -ne "")
+    {
+        $exifout = @()
+        if (!(Test-Path $OutputDir))
         {
-            $exifout = @()
-            if (!(Test-Path $OutputDir))
-                {
-                Write-Output "[*] $OutputDir does not exist! Canceling metadata extraction."
-                break
-                }
-            else{
-                $OutputPath = Convert-Path $OutputDir
-                Write-Output "[*] Now extracting metadata from $OutputDir"
-                try{
+            Write-Output "[*] $OutputDir does not exist! Canceling metadata extraction."
+            break
+        }
+        else
+        {
+            $OutputPath = Convert-Path $OutputDir
+            Write-Output "[*] Now extracting metadata from $OutputDir"
+            try
+            {
                 $exiftool = Get-ChildItem "exiftool.exe" -ErrorAction Stop
 
                 $exifpath = $exiftool.FullName | Out-String
                 $exifpath = $exifpath -replace "`n" -replace "`r"
                 $cmd = $exifpath + " " + $OutputPath + " -CSV > $ExtractAllToCsv"
                 Invoke-Expression $cmd
-                }
-                catch
-                {
+            }
+            catch
+            {
                 Write-Output "[*] Exiftool.exe was not found in the current directory! Exiting."
-                }
-
-
             }
         }
-        else{
-            #If we are not extracting all Metadata just get the Author and Creator for possible usernames.
-                if (!(Test-Path $OutputDir))
-                {
-                Write-Output "[*] $OutputDir does not exist! Canceling metadata extraction."
-                break
-                }
-                else{
-                $OutputPath = Convert-Path $OutputDir
-                $filearray = Get-ChildItem $OutputPath
-                $output = @()
-                try{
+    }
+    else
+    {
+        # If we are not extracting all Metadata just get the Author and Creator for possible usernames.
+        if (!(Test-Path $OutputDir))
+        {
+            Write-Output "[*] $OutputDir does not exist! Canceling metadata extraction."
+            break
+        }
+        else
+        {
+            $OutputPath = Convert-Path $OutputDir
+            $filearray = Get-ChildItem $OutputPath
+            $output = @()
+            try
+            {
                 $exiftool = Get-ChildItem "exiftool.exe" -ErrorAction Stop
                 $exifpath = $exiftool.FullName | Out-String
                 $exifpath = $exifpath -replace "`n" -replace "`r"
-                ForEach ($file in $filearray) {
-                $filepath = $OutputPath + "\" + $file
-                Write-Output "[*] Now extracting metadata from $filepath"
+                foreach ($file in $filearray)
+                {
+                    $filepath = $OutputPath + "\" + $file
+                    Write-Output "[*] Now extracting metadata from $filepath"
 
 
-                $cmd = $exifpath + " " + $filepath + " -CSV -Author -Creator"
-                $exifout = Invoke-Expression $cmd | Out-String
-                $strippedout = $exifout -replace "SourceFile" -replace "Author" -replace "Creator" -replace "`n" -replace "`r"
-                $modpath = $OutputPath -replace "\\", "\/"
-                $output += $strippedout -replace "^.*$file,"
+                    $cmd = $exifpath + " " + $filepath + " -CSV -Author -Creator"
+                    $exifout = Invoke-Expression $cmd | Out-String
+                    $strippedout = $exifout -replace "SourceFile" -replace "Author" -replace "Creator" -replace "`n" -replace "`r"
+                    $modpath = $OutputPath -replace "\\", "\/"
+                    $output += $strippedout -replace "^.*$file,"
                 }
                 $allmeta = @()
                 $allmeta += $output -split ","
@@ -563,12 +573,11 @@ Function ExtractMetadata{
                 Write-Output "`n[*] Extracted 'Author' and 'Creator' metadata"
                 $uniquemeta
                 Write-Output "`n"
-                }
-                catch
-                {
-                Write-Output "[*] Exiftool.exe was not found in the current directory! Exiting."
-                }
-
-                }
             }
+            catch
+            {
+                Write-Output "[*] Exiftool.exe was not found in the current directory! Exiting."
+            }
+        }
+    }
 }
