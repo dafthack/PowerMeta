@@ -14,6 +14,40 @@ $AllProtocols = [System.Net.SecurityProtocolType]'Ssl3,Tls,Tls11,Tls12'
 [System.Net.ServicePointManager]::SecurityProtocol = $AllProtocols
 [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
 
+function Set-UseUnsafeHeaderParsing
+{
+    param(
+        [Parameter(Mandatory,ParameterSetName='Enable')]
+        [switch]$Enable,
+
+        [Parameter(Mandatory,ParameterSetName='Disable')]
+        [switch]$Disable
+    )
+
+    $ShouldEnable = $PSCmdlet.ParameterSetName -eq 'Enable'
+
+    $netAssembly = [Reflection.Assembly]::GetAssembly([System.Net.Configuration.SettingsSection])
+
+    if($netAssembly)
+    {
+        $bindingFlags = [Reflection.BindingFlags] 'Static,GetProperty,NonPublic'
+        $settingsType = $netAssembly.GetType('System.Net.Configuration.SettingsSectionInternal')
+
+        $instance = $settingsType.InvokeMember('Section', $bindingFlags, $null, $null, @())
+
+        if($instance)
+        {
+            $bindingFlags = 'NonPublic','Instance'
+            $useUnsafeHeaderParsingField = $settingsType.GetField('useUnsafeHeaderParsing', $bindingFlags)
+
+            if($useUnsafeHeaderParsingField)
+            {
+              $useUnsafeHeaderParsingField.SetValue($instance, $ShouldEnable)
+            }
+        }
+    }
+}
+
 Function Invoke-PowerMeta{
 
     <#
@@ -139,6 +173,9 @@ Function Invoke-PowerMeta{
         $MaxSearchPages = 5
 
         )
+
+    # Sometimes downloads are not successful, this allows PS to download.
+    Set-UseUnsafeHeaderParsing -Enable
 
     #If no target file list was provided we will perform searches and craft one.
     If ($TargetFileList -eq "")
