@@ -1,4 +1,3 @@
-﻿# Disable cert checks
 add-type @"
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
@@ -229,6 +228,8 @@ Function Invoke-PowerMeta{
          
                     }
                     }
+                #Quiet ProgressBar to increase webrequest throughput
+                $ProgressPreference = 'SilentlyContinue'
 
                 #Performing a Bing search second
 
@@ -525,8 +526,6 @@ Function ExtractMetadata{
                 {
                 Write-Output "[*] Exiftool.exe was not found in the current directory! Exiting."
                 }
-                
-
             }
         }
         else{
@@ -570,4 +569,6 @@ Function ExtractMetadata{
 
                 }
             }
+       #Return ProgressBar to default
+       $ProgressPreference = 'Continue'
 }
