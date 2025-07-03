@@ -137,7 +137,7 @@ function Search-FilesOnDomain {
             
             Write-Host "  [*] Requesting results $startIndex to $($startIndex + 9)..."
             
-            $response = Invoke-RestMethod -Uri $apiUrl -Method Get -TimeoutSec 30
+            $response = Invoke-RestMethod -Uri $apiUrl -Method Get -TimeoutSec 120
             
             if ($response.items) {
                 $batchCount = 0
@@ -188,7 +188,7 @@ function Test-APICredentials {
         $testQuery = [System.Web.HttpUtility]::UrlEncode("test")
         $testUrl = "https://www.googleapis.com/customsearch/v1?key=$ApiKey&cx=$SearchEngineId&q=$testQuery&num=1"
         
-        $response = Invoke-RestMethod -Uri $testUrl -Method Get -TimeoutSec 10
+        $response = Invoke-RestMethod -Uri $testUrl -Method Get -TimeoutSec 20
         
         if ($response.searchInformation) {
             Write-Host "[+] API credentials are valid!"
@@ -254,7 +254,7 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
             }
             
             Write-Host "[*] Downloading: $url"
-            Invoke-WebRequest -Uri $url -UserAgent $UserAgent -UseBasicParsing -OutFile $filepath -TimeoutSec 30
+            Invoke-WebRequest -Uri $url -UserAgent $UserAgent -UseBasicParsing -OutFile $filepath -TimeoutSec 120
             Write-Host "[+] Saved: $filename"
         }
         catch {
