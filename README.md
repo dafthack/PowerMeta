@@ -11,6 +11,44 @@ PowerMeta uses Exiftool by Phil Harvey to extract metadata information from file
 PowerShell version 3.0 or later
 
 ## Usage
+
+### Google API
+Google's anti-bot protections are super aggressive now making it almost impossible to scrape results directly so you may get mixed results using PowerMeta.ps1. To get around this the easiest solution is to just use Google's API. I added a new script here called "PowerMeta-API.ps1" that does just that.
+
+Here's step-by-step instructions:
+
+Step 1: Create Google Cloud Project
+- Go to Google Cloud Console (https://cloud.google.com/)
+- Login with a Google account
+- Click "Select a project" → "New Project"
+- Enter a project name (e.g., "PowerMeta-API")
+- Click "Create"
+
+Step 2: Enable Custom Search API
+- In your project, go to "APIs & Services" → "Library"
+- Search for "Custom Search API"
+- Click on it and press "Enable"
+
+Step 3: Create API Key
+- Go to "APIs & Services" → "Credentials"
+- Click "Create Credentials" → "API Key"
+- Copy your API key (you'll need this)
+
+Step 4: Create Custom Search Engine
+- Go to Google Programmable Search Engine (https://programmablesearchengine.google.com)
+- Click "Add a search engine"
+- Enter any name (e.g., "PowerMeta Search")
+- For "Sites to search", select "Search the entire web"
+- Click "Create"
+- Copy your Search Engine ID (looks like: 94e6b2cd62344413c)
+
+Run it with:
+``` PowerShell
+.\PowerMeta-API.ps1 -TargetDomain "targetdomain.com" -ApiKey "<API key>" -SearchEngineId "<search engine ID>" -ExtractAllToCsv allmetadata.csv
+```
+
+## Non-API PowerMeta Instructions
+
 ### Import the Module
 ```
 C:\> powershell.exe -exec bypass
